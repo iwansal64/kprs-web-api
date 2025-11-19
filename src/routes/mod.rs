@@ -1,1 +1,2 @@
-pub mod user;
+pub mod voter;
+pub mod admin;

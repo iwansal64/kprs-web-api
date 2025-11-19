@@ -7,7 +7,7 @@ use crate::{db::get_all_users, util::log_something};
 
 pub static USERS_DATA: OnceCell<DashMap<String, String>> = OnceCell::const_new();
 
-pub async fn get_users_data<'a>() -> &'a DashMap<String, String> {
+pub async fn get_voters_data<'a>() -> &'a DashMap<String, String> {
       let data = USERS_DATA.get_or_init(async || {
             // Get the database URL from environment variable
             let database_url: String = std::env::var("DATABASE_URL")

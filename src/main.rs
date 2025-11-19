@@ -1,5 +1,5 @@
 use actix_web::{App, HttpServer, middleware::from_fn, web};
-use kprs_web_api::{data::{candidate::get_candidates_data, user::get_users_data, vote::get_votes_count}, middleware::middleware, routes::user::{user_get_api, user_reset_api, user_vote_api}, util::log_something};
+use kprs_web_api::{data::{candidate::get_candidates_data, voter::get_voters_data, vote::get_votes_count}, middleware::middleware, routes::{voter::{voter_get_api, voter_vote_api}, admin::{admin_reset_api, admin_token_api}}, util::log_something};
 use deadpool_redis::{Config as RedisConfig, Runtime as RedisRuntime};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 
@@ -9,7 +9,7 @@ async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().unwrap();
     
     // Setup Static Data
-    get_users_data().await;
+    get_voters_data().await;
     get_votes_count().await;
     get_candidates_data().await;
 
@@ -41,9 +41,10 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(redis_pool.clone()))
             .app_data(web::Data::new(postgres_pool.clone()))
             .wrap(from_fn(middleware))
-            .service(user_get_api)
-            .service(user_reset_api)
-            .service(user_vote_api)
+            .service(voter_get_api)
+            .service(voter_vote_api)
+            .service(admin_reset_api)
+            .service(admin_token_api)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

@@ -6,7 +6,7 @@ use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
-use crate::{data::user::get_users_data, db::remove_vote, util::{generate_token, log_error, log_something}};
+use crate::{data::voter::get_voters_data, db::remove_vote, util::{generate_token, log_error, log_something}};
 
 #[derive(Deserialize)]
 struct ResetBodyRequestType {
@@ -19,7 +19,7 @@ struct ResetBodyResponseType {
 }
 
 
-#[post("/user/reset")]
+#[post("/admin/reset")]
 pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis_pool: web::Data<RedisPool>, postgres_pool: web::Data<Pool<Postgres>>) -> HttpResponse {
       // Verify the admin token from cookies
       let admin_token_cookie = req.cookie("admin_token");
@@ -42,7 +42,7 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
 
 
       // Verify the voter is exists
-      let users_data = get_users_data().await;
+      let users_data = get_voters_data().await;
       if !users_data.contains_key(&target_voter_fullname) {
             log_something("PostReset", format!("An admin just wanting to reset a user that doesn't exists: {}", target_voter_fullname).as_str());
             return HttpResponse::NotFound().finish();
@@ -55,7 +55,7 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
       
       // Add the token of the voter to the Redis database
       let mut redis_connection: deadpool_redis::Connection = redis_pool.get().await.unwrap();
-      let _: () = redis_connection.hset("token_reset", target_voter_fullname.clone(), new_voter_token.clone()).await.unwrap();
+      let _: () = redis_connection.hset("voter_token_reset", target_voter_fullname.clone(), new_voter_token.clone()).await.unwrap();
 
 
       // Reset the vote from database

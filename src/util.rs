@@ -30,7 +30,9 @@ pub fn generate_token() -> String {
             
       // }
       for i in 0..=(TOKEN_LENGTH) {
-            let random_index = rng.random_range(65..(65+52));
+            let mut random_index = rng.random_range(65..(65+52));
+            if random_index > 90 { random_index += 6; }
+
             if let Some(data) = char::from_u32(random_index) {
                   result.insert(i, data);
             }

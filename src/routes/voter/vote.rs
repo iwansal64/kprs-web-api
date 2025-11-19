@@ -7,7 +7,7 @@ use redis::{AsyncCommands, RedisError};
 use serde::Deserialize;
 use sqlx::{Pool, Postgres};
 
-use crate::{data::{candidate::get_candidates_data, user::get_users_data, vote::get_votes_count}, db::insert_vote, util::{log_error, log_something}};
+use crate::{data::{candidate::get_candidates_data, voter::get_voters_data, vote::get_votes_count}, db::insert_vote, util::{log_error, log_something}};
 
 #[derive(Deserialize)]
 struct VoteBodyRequest {
@@ -15,7 +15,7 @@ struct VoteBodyRequest {
 }
 
 
-#[post("/user/vote")]
+#[post("/voter/vote")]
 pub async fn post(body: web::Json<VoteBodyRequest>, req: HttpRequest, redis_pool: web::Data<RedisPool>, postgres_pool: web::Data<Pool<Postgres>>) -> impl Responder {
       // Get the user token from request cookies
       let cookie_user_token = req.cookie("voter_token");
@@ -28,7 +28,7 @@ pub async fn post(body: web::Json<VoteBodyRequest>, req: HttpRequest, redis_pool
 
       // Verify the token from checking into the redis database
       let mut redis_connection: deadpool_redis::Connection = redis_pool.get().await.unwrap();
-      let redis_user_token_result: Result<HashMap<String, String>, RedisError>  = redis_connection.hgetall("token_reset").await;
+      let redis_user_token_result: Result<HashMap<String, String>, RedisError>  = redis_connection.hgetall("voter_token_reset").await;
       let redis_user_tokens: HashMap<String, String> = match redis_user_token_result {
             Ok(data) => data,
             Err(err) => {
@@ -40,7 +40,7 @@ pub async fn post(body: web::Json<VoteBodyRequest>, req: HttpRequest, redis_pool
 
 
       // Verify the token from checking into the redis database
-      let users_data: &DashMap<String, String> =  get_users_data().await;
+      let users_data: &DashMap<String, String> =  get_voters_data().await;
       let data_user_fullname  = users_data.iter().find(|data| data.value() == &cookie_user_token); 
       let data_user_fullname: Option<String> = match data_user_fullname {
             Some(data) => Some(data.key().clone()),

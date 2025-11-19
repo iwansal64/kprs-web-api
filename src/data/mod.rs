@@ -1,3 +1,3 @@
-pub mod user;
+pub mod voter;
 pub mod vote;
 pub mod candidate;
