@@ -6,8 +6,8 @@ use crate::{data::voter::get_voters_data, util::log_error};
 
 #[derive(Deserialize)]
 struct UserData {
-      fullname: String,
-      token: String
+    fullname: String,
+    token: String,
 }
 
 #[post("/voter/get")]

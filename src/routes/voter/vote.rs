@@ -11,7 +11,7 @@ use crate::{data::{candidate::get_candidates_data, voter::get_voters_data, vote:
 
 #[derive(Deserialize)]
 struct VoteBodyRequest {
-      candidate_fullname: String
+    candidate_fullname: String,
 }
 
 

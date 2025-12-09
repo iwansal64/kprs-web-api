@@ -29,7 +29,7 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
                   return HttpResponse::NotFound().finish();
             }
       };
-      
+
       let valid_admin_token = env::var("ADMIN_TOKEN");
       let valid_admin_token = match valid_admin_token {
             Ok(data) => data,
@@ -60,8 +60,8 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
 
       // Generate new token
       let new_voter_token: String = generate_token();
-      
-      
+
+
       // Add the token of the voter to the Redis database
       let redis_connection_result: Result<deadpool_redis::Connection, PoolError>  = redis_pool.get().await;
       let mut redis_connection: deadpool_redis::Connection = match redis_connection_result {
@@ -72,7 +72,7 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
             }
       };
 
-      
+
       let insert_result: Result<(), RedisError> = redis_connection.hset("voter_token_reset", target_voter_fullname.clone(), new_voter_token.clone()).await;
       match insert_result {
             Ok(_) => (),
