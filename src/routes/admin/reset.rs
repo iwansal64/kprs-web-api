@@ -1,12 +1,13 @@
-use std::env;
+use std::{env, sync::atomic::AtomicUsize};
 
 use actix_web::{HttpRequest, HttpResponse, post, web};
+use dashmap::DashMap;
 use deadpool_redis::{self, Pool as RedisPool, PoolError};
 use redis::{AsyncCommands, RedisError};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
-use crate::{data::voter::get_voters_data, db::remove_vote, util::{generate_token, log_error, log_something}};
+use crate::{data::{vote::get_votes_count, voter::get_voters_data}, db::{Vote, get_all_votes, remove_vote}, util::{generate_token, log_error, log_something}};
 
 #[derive(Deserialize)]
 struct ResetBodyRequestType {
@@ -83,6 +84,17 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
       }
 
 
+      // Get the votes data to get who this user voting
+      let db_all_votes = match get_all_votes(&postgres_pool).await {
+            Ok(data) => data,
+            Err(err) => {
+                  log_error("PostReset", format!("There's an error when getting all votes. Error: {}", err.to_string()).as_str());
+                  return HttpResponse::InternalServerError().finish();
+            }
+      };
+      let possible_voted_candidate: Option<&Vote> = db_all_votes.iter().find(|data| data.voter_name == target_voter_fullname);
+
+
       // Reset the vote from database
       let remove_vote_result = remove_vote(&postgres_pool, target_voter_fullname.as_str()).await;
       match remove_vote_result {
@@ -95,7 +107,22 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
             }
       }
 
-      
+
+      // Reset the vote from static(?) data
+      match possible_voted_candidate {
+            Some(voted_candidate) => {
+                  let static_votes_data: &DashMap<String, AtomicUsize> = get_votes_count().await;
+                  match static_votes_data.get(&voted_candidate.candidate_name) {
+                        Some(vote_data) => {
+                              vote_data.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                        },
+                        None => ()
+                  }
+            },
+            None => ()
+      }
+
+
       // Sends OK! with the data!
       HttpResponse::Ok()
             .content_type("application/json")
