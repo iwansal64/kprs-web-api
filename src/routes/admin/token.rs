@@ -1,9 +1,9 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, sync::Arc};
 use actix_web::{HttpRequest, HttpResponse, get, web::{self, Json}};
-use dashmap::DashMap;
 use deadpool_redis::{Connection as RedisConnection, Pool as RedisPool, PoolError};
 use redis::AsyncCommands;
 use serde::Serialize;
+use tokio::sync::RwLock;
 
 use crate::{data::voter::get_voters_data, util::log_error};
 
@@ -23,7 +23,7 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
                   return HttpResponse::NotFound().finish();
             }
       };
-      
+
       let valid_admin_token = env::var("ADMIN_TOKEN");
       let valid_admin_token = match valid_admin_token {
             Ok(data) => data,
@@ -47,7 +47,7 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
                   return HttpResponse::InternalServerError().finish();
             }
       };
-      
+
       let redis_voter_tokens: Result<HashMap<String, String>, redis::RedisError>  = redis_connection.hgetall("voter_token_reset").await;
       let redis_voter_tokens: HashMap<String, String> = match redis_voter_tokens {
             Ok(data) => data,
@@ -60,8 +60,8 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
 
 
       // Get the token data from static
-      let static_voter_tokens: &DashMap<String, String> = get_voters_data().await;
-      let static_voter_tokens: HashMap<String, String> = static_voter_tokens.iter().map(|data| (data.key().clone(), data.value().clone())).collect();
+      let static_voter_tokens: Arc<RwLock<HashMap<String, String>>> = get_voters_data();
+      let locked_static_voter_tokens = static_voter_tokens.read().await.clone();
 
 
       // Return the token data
@@ -69,6 +69,6 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
 
       response.json(Json(GetTokenResponseType {
             changed_voter_tokens: redis_voter_tokens,
-            static_voter_tokens: static_voter_tokens
+            static_voter_tokens: locked_static_voter_tokens
       }))
 }

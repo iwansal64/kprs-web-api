@@ -1,7 +1,6 @@
 use std::{collections::HashMap, env, sync::atomic::{AtomicUsize, Ordering}};
 
 use actix_web::{HttpRequest, HttpResponse, get};
-use dashmap::DashMap;
 use serde::Serialize;
 
 use crate::{data::vote::get_votes_count, util::log_error};
@@ -38,11 +37,11 @@ pub async fn get(req: HttpRequest) -> HttpResponse {
 
 
       // Get the static votes data
-      let static_votes_data: &DashMap<String, AtomicUsize> = get_votes_count().await;
+      let static_votes_data: &HashMap<String, AtomicUsize> = get_votes_count().await;
 
 
       HttpResponse::Ok()
             .json(GetBodyRequestType {
-                  votes_data: static_votes_data.iter().map(|data| (data.key().clone(), data.value().load(Ordering::Relaxed))).collect::<HashMap<String, usize>>()
+                  votes_data: static_votes_data.iter().map(|data| (data.0.clone(), data.1.load(Ordering::Relaxed))).collect::<HashMap<String, usize>>()
             })
 }

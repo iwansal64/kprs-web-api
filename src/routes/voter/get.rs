@@ -18,7 +18,9 @@ pub async fn post(redis_pool: web::Data<RedisPool>, data: web::Json<UserData>) -
     let target_user_token = data.token;
 
     // Check in the users hashmap
-    let data_user_token = get_voters_data().await.get(&target_user_fullname);
+    let static_voters_data = get_voters_data();
+    let locked_static_voters_data = static_voters_data.read().await;
+    let data_user_token = locked_static_voters_data.get(&target_user_fullname);
     let data_user_token = match data_user_token {
         Some(data) => data.to_string(),
         None => {
@@ -33,7 +35,7 @@ pub async fn post(redis_pool: web::Data<RedisPool>, data: web::Json<UserData>) -
         Ok(connection) => connection,
         Err(err) => {
             log_error(
-                "PostReset",
+                "VoterGet",
                 format!(
                     "There's an error when trying to get admin redis pool. Error: {}",
                     err.to_string()

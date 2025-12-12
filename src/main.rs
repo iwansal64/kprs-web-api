@@ -2,10 +2,14 @@ use actix_web::{App, HttpServer, middleware::from_fn, web};
 use actix_cors::Cors;
 use deadpool_redis::{Config as RedisConfig, Runtime as RedisRuntime};
 use kprs_web_api::{
-    data::{candidate::get_candidates_data, vote::get_votes_count, voter::get_voters_data}, db::init_db, middleware::middleware, routes::{
+    data::{candidate::init_candidates_data, vote::init_votes_count, voter::init_voters_data},
+    db::init_db,
+    middleware::middleware,
+    routes::{
         admin::{admin_reset_api, admin_token_api, admin_votes_api},
         voter::{voter_get_api, voter_vote_api},
-    }, util::log_something
+    },
+    util::log_something
 };
 
 
@@ -18,14 +22,13 @@ async fn main() -> std::io::Result<()> {
     init_db().await;
 
     // Setup Static Data
-    get_voters_data().await;
-    get_votes_count().await;
-    get_candidates_data().await;
-
-    // Get the database URL from environment variable
-    let redis_url: String = std::env::var("REDIS_URL").unwrap();
+    init_voters_data().await;
+    init_votes_count().await;
+    init_candidates_data().await;
 
     // Setup Redis
+    let redis_url: String = std::env::var("REDIS_URL").unwrap();
+
     let redis_configuration: RedisConfig = RedisConfig {
         url: Some(redis_url),
         connection: None,

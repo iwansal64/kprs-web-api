@@ -1,7 +1,6 @@
-use std::{env, sync::atomic::AtomicUsize};
+use std::{collections::HashMap, env, sync::atomic::AtomicUsize};
 
 use actix_web::{HttpRequest, HttpResponse, post, web};
-use dashmap::DashMap;
 use deadpool_redis::{self, Pool as RedisPool, PoolError};
 use redis::{AsyncCommands, RedisError};
 use serde::{Deserialize, Serialize};
@@ -51,8 +50,9 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
 
 
       // Verify the voter is exists
-      let users_data = get_voters_data().await;
-      if !users_data.contains_key(&target_voter_fullname) {
+      let users_data = get_voters_data();
+      let locked_users_data = users_data.read().await;
+      if !locked_users_data.contains_key(&target_voter_fullname) {
             log_something("PostReset", format!("An admin just wanting to reset a user that doesn't exists: {}", target_voter_fullname).as_str());
             return HttpResponse::NotFound().finish();
       }
@@ -110,7 +110,7 @@ pub async fn post(body: web::Json<ResetBodyRequestType>, req: HttpRequest, redis
       // Reset the vote from static(?) data
       match possible_voted_candidate {
             Some(voted_candidate) => {
-                  let static_votes_data: &DashMap<String, AtomicUsize> = get_votes_count().await;
+                  let static_votes_data: &HashMap<String, AtomicUsize> = get_votes_count().await;
                   match static_votes_data.get(&voted_candidate.candidate_name) {
                         Some(vote_data) => {
                               vote_data.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);

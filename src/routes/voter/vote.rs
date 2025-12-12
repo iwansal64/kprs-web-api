@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use actix_web::{HttpRequest, HttpResponse, post, web};
-use dashmap::DashMap;
 use deadpool_redis::{self, Pool as RedisPool, PoolError};
 use redis::{AsyncCommands, RedisError};
 use serde::Deserialize;
@@ -65,12 +64,13 @@ pub async fn post(
         .map(|user_data| user_data.0.clone());
 
     // Verify the token from checking into the redis database
-    let users_data: &DashMap<String, String> = get_voters_data().await;
-    let data_user_fullname = users_data
+    let static_voters_data = get_voters_data();
+    let locked_static_voters_data = static_voters_data.read().await;
+    let data_user_fullname = locked_static_voters_data
         .iter()
-        .find(|data| data.value() == &cookie_user_token);
+        .find(|data| data.1 == &cookie_user_token);
     let data_user_fullname: Option<String> = match data_user_fullname {
-        Some(data) => Some(data.key().clone()),
+        Some(data) => Some(data.0.clone()),
         None => None,
     };
 

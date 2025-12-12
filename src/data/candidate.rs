@@ -36,3 +36,7 @@ pub async fn get_candidates_data<'a>() -> &'a Vec<String> {
 
       return &data;
 }
+
+pub async fn init_candidates_data() {
+      get_candidates_data().await;
+}
