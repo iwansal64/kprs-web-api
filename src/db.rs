@@ -3,10 +3,74 @@ use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use surrealdb::Surreal;
 use surrealdb::engine::remote::ws::{Client, Ws};
+use surrealdb::method::Stream;
 use surrealdb::opt::auth::Root;
+use tokio;
+use futures::StreamExt;
+
+use crate::data::voter::update_voters_data;
+use crate::util::{log_error, log_something};
 
 
 static SURREAL_DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Voter {
+    pub token: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Candidate {
+      pub name: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Vote {
+      pub voter_name: String,
+      pub candidate_name: String
+}
+
+pub async fn handle_live_changes() {
+
+      async fn voter_changes() -> Result<(), surrealdb::Error> {
+            let mut live: Stream<Vec<Voter>> = SURREAL_DB.select::<Vec<Voter>>("voter").live().await?;
+
+
+            'notification_loop: while let Some(result) = live.next().await {
+                  if let Err(err) = result {
+                        log_error("LiveUpdate", format!("There's an error when trying to get the notificaton. Error: {}", err.to_string()).as_str());
+                        continue;
+                  }
+
+                  match result {
+                        Ok(_) => (),
+                        Err(_) => {
+                              continue 'notification_loop;
+                        }
+                  };
+
+                  update_voters_data().await;
+
+                  log_something("LiveUpdate", "There's an update!");
+            }
+
+            Ok(())
+      }
+
+
+      tokio::spawn(async {
+            let result = voter_changes().await;
+            match result {
+                  Ok(_) => (),
+                  Err(err) => {
+                        log_error("LiveUpdate", format!("There's an error when using live select for voter database! Error: {}", err.to_string()).as_str());
+                  }
+            }
+      });
+}
+
 
 pub async fn init_db() {
       SURREAL_DB.connect::<Ws>(std::env::var("DATABASE_URL").unwrap()).await.unwrap();
@@ -20,22 +84,18 @@ pub async fn init_db() {
             .use_ns(std::env::var("SURREAL_NS_NAME").unwrap())
             .use_db(std::env::var("SURREAL_DB_NAME").unwrap())
             .await.unwrap();
+
+      handle_live_changes().await;
 }
 
 
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Voter {
-    pub token: String,
-    pub name: String,
-}
 
 pub async fn get_all_users() -> surrealdb::Result<Vec<Voter>> {
-      SURREAL_DB.select::<Vec<Voter>>("voters").await
+      SURREAL_DB.select::<Vec<Voter>>("voter").await
 }
 
 pub async fn get_user_by_token(token: String) -> surrealdb::Result<Option<Voter>> {
-      let result = SURREAL_DB.query("SELECT * FROM voters WHERE token = $token")
+      let result = SURREAL_DB.query("SELECT * FROM voter WHERE token = $token")
             .bind(("token", token))
             .await?
             .take::<Vec<Voter>>(0)?;
@@ -45,29 +105,19 @@ pub async fn get_user_by_token(token: String) -> surrealdb::Result<Option<Voter>
 
 
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Candidate {
-      pub name: String
-}
 
 pub async fn get_all_candidates() -> surrealdb::Result<Vec<Candidate>> {
-      SURREAL_DB.select::<Vec<Candidate>>("candidates").await
+      SURREAL_DB.select::<Vec<Candidate>>("candidate").await
 }
 
 
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Vote {
-      pub voter_name: String,
-      pub candidate_name: String
-}
 
 pub async fn get_all_votes() -> surrealdb::Result<Vec<Vote>> {
-      SURREAL_DB.select::<Vec<Vote>>("votes").await
+      SURREAL_DB.select::<Vec<Vote>>("vote").await
 }
 
 pub async fn insert_vote(voter_name: String, candidate_name: String) -> surrealdb::Result<()> {
-      SURREAL_DB.insert::<Vec<Vote>>("votes")
+      SURREAL_DB.insert::<Vec<Vote>>("vote")
             .content(vec![
                   Vote {
                         voter_name: voter_name,
@@ -80,7 +130,7 @@ pub async fn insert_vote(voter_name: String, candidate_name: String) -> surreald
 }
 
 pub async fn remove_vote(voter_name: String) -> surrealdb::Result<()> {
-      SURREAL_DB.query("DELETE FROM votes WHERE voter_name = $voter_name")
+      SURREAL_DB.query("DELETE FROM vote WHERE voter_name = $voter_name")
             .bind(("voter_name", voter_name))
             .await?;
 
