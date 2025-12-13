@@ -20,9 +20,9 @@ pub async fn post(redis_pool: web::Data<RedisPool>, data: web::Json<UserData>) -
     // Check in the users hashmap
     let static_voters_data = get_voters_data();
     let locked_static_voters_data = static_voters_data.read().await;
-    let data_user_token = locked_static_voters_data.get(&target_user_fullname);
-    let data_user_token = match data_user_token {
-        Some(data) => data.to_string(),
+    let static_voter_data = locked_static_voters_data.get(&target_user_fullname);
+    let static_voter_data = match static_voter_data {
+        Some(data) => data,
         None => {
             return HttpResponse::NotFound().finish();
         }
@@ -65,7 +65,7 @@ pub async fn post(redis_pool: web::Data<RedisPool>, data: web::Json<UserData>) -
     }
 
     // If there's no targetted user token in redis check with the default data user token
-    if redis_user_token_maybe.is_none() && target_user_token != data_user_token {
+    if redis_user_token_maybe.is_none() && target_user_token != static_voter_data.token {
         return HttpResponse::Unauthorized().finish();
     }
 

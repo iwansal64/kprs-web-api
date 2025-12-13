@@ -57,7 +57,7 @@ pub async fn post(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpRes
       let locked_static_voters_data = static_voters_data.read().await;
       let data_user_fullname = locked_static_voters_data
           .iter()
-          .find(|data| data.1 == &cookie_user_token);
+          .find(|data| data.1.token == cookie_user_token);
       let data_user_fullname: Option<String> = match data_user_fullname {
           Some(data) => Some(data.0.clone()),
           None => None,

@@ -2,10 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 use once_cell::sync::Lazy;
 use tokio::sync::RwLock;
 
-use crate::{db::get_all_users, util::{log_error, log_something}};
+use crate::{db::{Voter, get_all_users}, util::{log_error, log_something}};
 
 
-static USERS_DATA: Lazy<Arc<RwLock<HashMap<String, String>>>> = Lazy::new(|| {
+static USERS_DATA: Lazy<Arc<RwLock<HashMap<String, Voter>>>> = Lazy::new(|| {
       Arc::new(RwLock::new(HashMap::new()))
 });
 
@@ -24,7 +24,7 @@ pub async fn update_voters_data() {
       {
             let mut locked_users_data = USERS_DATA.write().await;
             for db_user in db_all_users {
-                  locked_users_data.insert(db_user.name, db_user.token);
+                  locked_users_data.insert(db_user.name.clone(), db_user);
             }
       }
 
@@ -32,7 +32,7 @@ pub async fn update_voters_data() {
       log_something("StaticData", "Static users data successfully updated!");
 }
 
-pub fn get_voters_data() -> Arc<RwLock<HashMap<String, String>>> {
+pub fn get_voters_data() -> Arc<RwLock<HashMap<String, Voter>>> {
       USERS_DATA.clone()
 }
 

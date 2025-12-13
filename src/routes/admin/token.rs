@@ -5,12 +5,12 @@ use redis::AsyncCommands;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use crate::{data::voter::get_voters_data, util::log_error};
+use crate::{data::voter::get_voters_data, db::Voter, util::log_error};
 
 #[derive(Serialize)]
 struct GetTokenResponseType {
       changed_voter_tokens: HashMap<String, String>,
-      static_voter_tokens: HashMap<String, String>
+      static_voter_data: HashMap<String, Voter>
 }
 
 #[get("/admin/token")]
@@ -60,7 +60,7 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
 
 
       // Get the token data from static
-      let static_voter_tokens: Arc<RwLock<HashMap<String, String>>> = get_voters_data();
+      let static_voter_tokens: Arc<RwLock<HashMap<String, Voter>>> = get_voters_data();
       let locked_static_voter_tokens = static_voter_tokens.read().await.clone();
 
 
@@ -69,6 +69,6 @@ pub async fn get(req: HttpRequest, redis_pool: web::Data<RedisPool>) -> HttpResp
 
       response.json(Json(GetTokenResponseType {
             changed_voter_tokens: redis_voter_tokens,
-            static_voter_tokens: locked_static_voter_tokens
+            static_voter_data: locked_static_voter_tokens
       }))
 }

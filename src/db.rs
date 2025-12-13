@@ -14,19 +14,27 @@ use crate::util::{log_error, log_something};
 
 static SURREAL_DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum Campus {
+      MM,
+      PD
+}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Voter {
     pub token: String,
     pub name: String,
+    pub class: String,
+    pub campus: Campus
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Candidate {
-      pub name: String
+      pub name: String,
+      pub campus: Campus
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Vote {
       pub voter_name: String,
       pub candidate_name: String
