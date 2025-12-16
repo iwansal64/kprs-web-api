@@ -77,5 +77,5 @@ pub async fn post(redis_pool: web::Data<RedisPool>, data: web::Json<UserData>) -
         .finish();
 
     // Return the response
-    HttpResponse::Ok().cookie(cookie_user_token).finish()
+    HttpResponse::Ok().cookie(cookie_user_token).json(static_voter_data)
 }
