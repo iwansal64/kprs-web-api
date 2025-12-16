@@ -8,6 +8,7 @@ use surrealdb::opt::auth::Root;
 use tokio;
 use futures::StreamExt;
 
+use crate::data::admin::update_admin_data;
 use crate::data::voter::update_voters_data;
 use crate::util::{log_error, log_something};
 
@@ -49,14 +50,14 @@ pub struct Admin {
 
 pub async fn handle_live_changes() {
 
-      async fn voter_changes() -> Result<(), surrealdb::Error> {
+      async fn voter_changes() -> surrealdb::Result<()> {
             let mut live: Stream<Vec<Voter>> = SURREAL_DB.select::<Vec<Voter>>("voter").live().await?;
 
 
             'notification_loop: while let Some(result) = live.next().await {
                   if let Err(err) = result {
                         log_error("LiveUpdate", format!("There's an error when trying to get the notificaton. Error: {}", err.to_string()).as_str());
-                        continue;
+                        continue 'notification_loop;
                   }
 
                   match result {
@@ -68,7 +69,32 @@ pub async fn handle_live_changes() {
 
                   update_voters_data().await;
 
-                  log_something("LiveUpdate", "There's an update!");
+                  log_something("LiveUpdate", "There's an update for voter data!");
+            }
+
+            Ok(())
+      }
+
+      async fn admin_changes() -> surrealdb::Result<()> {
+            let mut live: Stream<Vec<Admin>> = SURREAL_DB.select::<Vec<Admin>>("admin").live().await?;
+
+
+            'notification_loop: while let Some(result) = live.next().await {
+                  if let Err(err) = result {
+                        log_error("LiveUpdate", format!("There's an error when trying to get the notificaton. Error: {}", err.to_string()).as_str());
+                        continue 'notification_loop;
+                  }
+
+                  match result {
+                        Ok(_) => (),
+                        Err(_) => {
+                              continue 'notification_loop;
+                        }
+                  };
+
+                  update_admin_data().await;
+
+                  log_something("LiveUpdate", "There's an update for admin data!");
             }
 
             Ok(())
@@ -81,6 +107,16 @@ pub async fn handle_live_changes() {
                   Ok(_) => (),
                   Err(err) => {
                         log_error("LiveUpdate", format!("There's an error when using live select for voter database! Error: {}", err.to_string()).as_str());
+                  }
+            }
+      });
+
+      tokio::spawn(async {
+            let result = admin_changes().await;
+            match result {
+                  Ok(_) => (),
+                  Err(err) => {
+                        log_error("LiveUpdate", format!("There's an error when using live select for admin database! Error: {}", err.to_string()).as_str());
                   }
             }
       });

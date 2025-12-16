@@ -1,35 +1,39 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use tokio::sync::{OnceCell, RwLock};
+use once_cell::sync::Lazy;
+use tokio::sync::RwLock;
 
 use crate::{db::{Admin, get_all_admins}, util::log_error};
 
 
-pub static ADMIN_DATA: OnceCell<RwLock<HashMap<String, Admin>>> = OnceCell::const_new();
+pub static ADMIN_DATA: Lazy<Arc<RwLock<HashMap<String, Admin>>>> = Lazy::new(|| {
+      Arc::new(RwLock::new(HashMap::new()))
+});
 
-pub async fn get_all_admin_data<'a>() -> &'a RwLock<HashMap<String, Admin>> {
-      let result: &RwLock<HashMap<String, Admin>> = ADMIN_DATA.get_or_init(|| async {
-            // Get the admin data from database
-            let admin_data = get_all_admins().await;
-            let admin_data: Vec<Admin> = match admin_data {
-                  Ok(data) => data,
-                  Err(err) => {
-                        log_error("StaticData", format!("There's an error when trying to get static data from database. Error: {}", err.to_string()).as_str());
-                        return RwLock::new(HashMap::new());
-                  }
-            };
-
-
-            // Map all of the admin data
-            let mut mapped_admin_data: HashMap<String, Admin> = HashMap::new();
-            for data in admin_data {
-                  mapped_admin_data.insert(data.admin_id.clone(), data);
+pub async fn update_admin_data() {
+      // Get the admin data from database
+      let admin_data = get_all_admins().await;
+      let admin_data: Vec<Admin> = match admin_data {
+            Ok(data) => data,
+            Err(err) => {
+                  log_error("StaticData", format!("There's an error when trying to get static data from database. Error: {}", err.to_string()).as_str());
+                  return;
             }
+      };
 
 
-            // Return the data
-            RwLock::new(mapped_admin_data)
-      }).await;
+      // Map all of the admin data
+      let mut locked_write_admin_data = ADMIN_DATA.write().await;
+      locked_write_admin_data.clear();
+      for data in admin_data {
+            locked_write_admin_data.insert(data.admin_id.clone(), data);
+      }
+}
 
-      return result;
+pub async fn get_all_admin_data() -> Arc<RwLock<HashMap<String, Admin>>> {
+      return ADMIN_DATA.clone()
+}
+
+pub async fn init_admin_data() {
+      update_admin_data().await;
 }
