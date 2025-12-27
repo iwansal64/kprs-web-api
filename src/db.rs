@@ -25,15 +25,15 @@ pub enum Campus {
 
 impl Campus {
     pub fn as_str(&self) -> &'static str {
-          campus_to_str(self)
+        campus_to_str(self)
     }
 }
 
 pub fn campus_to_str(campus: &Campus) -> &'static str {
-      match campus {
-          Campus::MM => "MM",
-          Campus::PD => "PD",
-      }
+    match campus {
+        Campus::MM => "MM",
+        Campus::PD => "PD",
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -218,8 +218,10 @@ pub async fn handle_live_changes() {
 }
 
 pub async fn init_db() {
+    let surrealdb_url: String = std::env::var("SURREAL_URL").unwrap();
+
     SURREAL_DB
-        .connect::<Ws>(std::env::var("DATABASE_URL").unwrap())
+        .connect::<Ws>(surrealdb_url)
         .await
         .unwrap();
 

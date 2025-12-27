@@ -1,0 +1,45 @@
+services:
+        surrealdb:
+                image: surrealdb/surrealdb
+                container_name: surrealdb-container
+                user: "0:0"
+                command: >
+                        start --log info --user ${SURREAL_USERNAME} --pass ${SURREAL_PASSWORD} surrealkv:/data
+                volumes:
+                        - surreal-data:/data
+                ports:
+                        - "8000:8000"
+                environment:
+                        SURREAL_USERNAME: ${SURREAL_USERNAME}
+                        SURREAL_PASSWORD: ${SURREAL_PASSWORD}
+
+        redisdb:
+                image: redis
+                container_name: redisdb-container
+                user: "0:0"
+                environment:
+                        REDIS_PASS: ${REDIS_PASS}
+                command: >
+                        redis-server --requirepass ${REDIS_PASS}
+                ports:
+                        - "6379:6379"
+
+        rustserver:
+                build: .
+                ports:
+                        - "8080:8080"
+                environment:
+                        SERVER_PORT: 8080
+                        REDIS_URL: redis://:AnjayGurinjay@redisdb:6379
+                        SURREAL_URL: surrealdb:8000
+                env_file: "./.env"
+                depends_on:
+                    surrealdb:
+                        condition: service_started
+                        required: true
+                    redisdb:
+                        condition: service_started
+                        required: true
+
+volumes:
+        surreal-data:

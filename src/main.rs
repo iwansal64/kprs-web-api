@@ -16,6 +16,7 @@ use kprs_web_api::{
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Setup dotenv
+    dotenvy::from_filename(".env").unwrap();
     dotenvy::dotenv().unwrap();
 
     // Setup SurrealDB
@@ -41,7 +42,9 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
 
     // Setup HTTP Server
-    log_something("Setup", "Starting...");
+    let server_port: u16 = std::env::var("SERVER_PORT").unwrap().parse::<u16>().unwrap();
+
+    log_something("Setup", "Server Start!");
     HttpServer::new(move || {
         App::new()
             // State
@@ -68,7 +71,7 @@ async fn main() -> std::io::Result<()> {
             // WebSocket live connectio
             .service(live_votes_data)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", server_port))?
     .run()
     .await
 }
